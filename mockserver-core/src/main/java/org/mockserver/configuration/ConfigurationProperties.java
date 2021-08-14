@@ -134,6 +134,7 @@ public class ConfigurationProperties {
     private static final String MOCKSERVER_CORS_ALLOW_CREDENTIALS = "mockserver.corsAllowCredentials";
     private static final String MOCKSERVER_CORS_MAX_AGE_IN_SECONDS = "mockserver.corsMaxAgeInSeconds";
     private static final String MOCKSERVER_LIVENESS_HTTP_GET_PATH = "mockserver.livenessHttpGetPath";
+    private static final String MOCKSERVER_BULK_INITIALIZATION_JSON_PATH = "mockserver.bulkInitializationJsonPath";
 
     private static final Properties PROPERTIES = readPropertyFile();
     private static final Set<String> ALL_SUBJECT_ALTERNATIVE_DOMAINS = Sets.newConcurrentHashSet();
@@ -999,6 +1000,13 @@ public class ConfigurationProperties {
         System.setProperty(MOCKSERVER_INITIALIZATION_JSON_PATH, initializationJsonPath);
     }
 
+    public static String bulkInitializationJsonPath() {
+        return readPropertyHierarchically(MOCKSERVER_BULK_INITIALIZATION_JSON_PATH, "MOCKSERVER_BULK_INITIALIZATION_JSON_PATH", "");
+    }
+
+    public static void bulkInitializationJsonPath(String bulkInitializationJsonPath) {
+        System.setProperty(MOCKSERVER_BULK_INITIALIZATION_JSON_PATH, bulkInitializationJsonPath);
+    }
     public static boolean watchInitializationJson() {
         return Boolean.parseBoolean(readPropertyHierarchically(MOCKSERVER_WATCH_INITIALIZATION_JSON, "MOCKSERVER_WATCH_INITIALIZATION_JSON", "" + false));
     }

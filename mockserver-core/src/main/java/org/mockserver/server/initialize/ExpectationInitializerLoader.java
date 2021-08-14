@@ -1,5 +1,6 @@
 package org.mockserver.server.initialize;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.mockserver.configuration.ConfigurationProperties;
@@ -11,7 +12,12 @@ import org.mockserver.mock.RequestMatchers;
 import org.mockserver.mock.listeners.MockServerMatcherNotifier.Cause;
 import org.mockserver.serialization.ExpectationSerializer;
 
+import java.io.File;
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.mockserver.log.model.LogEntry.LogMessageType.SERVER_CONFIGURATION;
@@ -69,7 +75,8 @@ public class ExpectationInitializerLoader {
 
     private Expectation[] retrieveExpectationsFromJson() {
         String initializationJsonPath = ConfigurationProperties.initializationJsonPath();
-        if (isNotBlank(initializationJsonPath)) {
+        String bulkInitializationJsonPath = ConfigurationProperties.bulkInitializationJsonPath();
+        if (isNotBlank(bulkInitializationJsonPath)) {
             if (MockServerLogger.isEnabled(INFO)) {
                 mockServerLogger.logEvent(
                     new LogEntry()
@@ -79,6 +86,48 @@ public class ExpectationInitializerLoader {
                         .setArguments(initializationJsonPath)
                 );
             }
+
+            String[] extensions = {"json"};
+            Collection<File> jsonExpectationFiles = FileUtils.listFiles(new File(bulkInitializationJsonPath), extensions, true);
+            if (jsonExpectationFiles == null || jsonExpectationFiles.isEmpty()) {
+                mockServerLogger.logEvent(
+                    new LogEntry()
+                        .setType(SERVER_CONFIGURATION)
+                        .setLogLevel(ERROR)
+                        .setMessageFormat("Directory for Bulk JSON PATH empty. {}}")
+                        .setArguments(bulkInitializationJsonPath)
+                );
+                return new Expectation[0];
+            }
+            List<Expectation> expectationList = new ArrayList<>();
+            for (File expectationFile : jsonExpectationFiles) {
+                String jsonExpectations = FileReader.readFileFromClassPathOrPath(expectationFile.getPath());
+                if (MockServerLogger.isEnabled(DEBUG)) {
+                    mockServerLogger.logEvent(
+                        new LogEntry()
+                            .setType(SERVER_CONFIGURATION)
+                            .setLogLevel(DEBUG)
+                            .setMessageFormat("Loaded JSON initialization file:{}content:{}")
+                            .setArguments(expectationFile.getPath(), StringUtils.abbreviate(jsonExpectations, 1000))
+                    );
+                }
+                if (isNotBlank(jsonExpectations)) {
+                    expectationList.addAll(Arrays.asList(expectationSerializer.deserializeArray(jsonExpectations, true)));
+                }
+            }
+            return expectationList.stream().toArray(n -> new Expectation[n]);
+
+        } else if (isNotBlank(initializationJsonPath)) {
+            if (MockServerLogger.isEnabled(INFO)) {
+                mockServerLogger.logEvent(
+                    new LogEntry()
+                        .setType(SERVER_CONFIGURATION)
+                        .setLogLevel(INFO)
+                        .setMessageFormat("loading JSON initialization file:{}")
+                        .setArguments(initializationJsonPath)
+                );
+            }
+
             try {
                 String jsonExpectations = FileReader.readFileFromClassPathOrPath(initializationJsonPath);
                 if (MockServerLogger.isEnabled(DEBUG)) {
