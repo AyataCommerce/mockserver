@@ -13,5 +13,5 @@ docker run \
   -v /Users/stanleysj/GIT/AYATA/dm-mock-api-svc/api-mock:/api-mock \
   --name mockserver_local_snapshot \
   -p 1080:1080 \
-  mockserver/mockserver:local-snapshot -logLevel INFO -serverPort 1080
+  ayatacommerce/mockserver:local-snapshot -logLevel INFO -serverPort 1080
 

@@ -1,5 +1,6 @@
 package org.mockserver.persistence;
 
+import org.apache.commons.io.FileUtils;
 import org.mockserver.configuration.ConfigurationProperties;
 import org.mockserver.file.FileReader;
 import org.mockserver.log.model.LogEntry;
@@ -10,7 +11,11 @@ import org.mockserver.mock.listeners.MockServerMatcherNotifier;
 import org.mockserver.serialization.ExpectationSerializer;
 import org.slf4j.event.Level;
 
+import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.mockserver.log.model.LogEntry.LogMessageType.SERVER_CONFIGURATION;
@@ -28,14 +33,15 @@ public class ExpectationFileWatcher {
             this.expectationSerializer = new ExpectationSerializer(mockServerLogger);
             this.mockServerLogger = mockServerLogger;
             this.requestMatchers = requestMatchers;
+            String filePath = isNotBlank(ConfigurationProperties.bulkInitializationJsonPath()) ? ConfigurationProperties.bulkInitializationJsonPath() : ConfigurationProperties.initializationJsonPath();
             try {
-                fileWatcher = new FileWatcher(ConfigurationProperties.initializationJsonPath(), () -> {
+                fileWatcher = new FileWatcher(filePath, () -> {
                     if (MockServerLogger.isEnabled(DEBUG)) {
                         mockServerLogger.logEvent(
                             new LogEntry()
                                 .setLogLevel(DEBUG)
                                 .setMessageFormat("expectation file watcher updating expectations as modification detected on file{}")
-                                .setArguments(ConfigurationProperties.initializationJsonPath())
+                                .setArguments(filePath)
                         );
                     }
                     addExpectationsFromInitializer();
@@ -88,7 +94,19 @@ public class ExpectationFileWatcher {
 
     private Expectation[] retrieveExpectationsFromJson() {
         String initializationJsonPath = ConfigurationProperties.initializationJsonPath();
-        if (isNotBlank(initializationJsonPath)) {
+        String bulkInitializationJsonPath = ConfigurationProperties.bulkInitializationJsonPath();
+        if (isNotBlank(bulkInitializationJsonPath)) {
+            String[] extensions = {"json"};
+            Collection<File> jsonExpectationFiles = FileUtils.listFiles(new File(bulkInitializationJsonPath), extensions, true);
+            List<Expectation> expectationList = new ArrayList<>();
+            for (File expectationFile : jsonExpectationFiles) {
+                String jsonExpectations = FileReader.readFileFromClassPathOrPath(expectationFile.getPath());
+                if (isNotBlank(jsonExpectations)) {
+                    expectationList.addAll(Arrays.asList(expectationSerializer.deserializeArray(jsonExpectations, true)));
+                }
+            }
+            return expectationList.stream().toArray(n -> new Expectation[n]);
+        } else if (isNotBlank(initializationJsonPath)) {
             try {
                 String jsonExpectations = FileReader.readFileFromClassPathOrPath(initializationJsonPath);
                 if (isNotBlank(jsonExpectations)) {
